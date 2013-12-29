@@ -17,4 +17,4 @@ var registerExtenderCallbacks = function(callbacks) {
 
     // Throw an exception that will appear in the error tab for this extension
     throw RuntimeException("Hello exception");
-}
+};
