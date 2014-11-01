@@ -15,29 +15,29 @@ from javax.swing.table import AbstractTableModel;
 from threading import Lock
 
 class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel):
-    
+
     #
     # implement IBurpExtender
     #
-    
-    def	registerExtenderCallbacks(self, callbacks):
-    
+
+    def registerExtenderCallbacks(self, callbacks):
+
         # keep a reference to our callbacks object
         self._callbacks = callbacks
-        
+
         # obtain an extension helpers object
         self._helpers = callbacks.getHelpers()
-        
+
         # set our extension name
         callbacks.setExtensionName("Custom logger")
-        
+
         # create the log and a lock on which to synchronize when adding log entries
         self._log = ArrayList()
         self._lock = Lock()
-        
+
         # main split pane
         self._splitpane = JSplitPane(JSplitPane.VERTICAL_SPLIT)
-        
+
         # table of log entries
         logTable = Table(self)
         scrollPane = JScrollPane(logTable)
@@ -50,44 +50,44 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         tabs.addTab("Request", self._requestViewer.getComponent())
         tabs.addTab("Response", self._responseViewer.getComponent())
         self._splitpane.setRightComponent(tabs)
-        
+
         # customize our UI components
         callbacks.customizeUiComponent(self._splitpane)
         callbacks.customizeUiComponent(logTable)
         callbacks.customizeUiComponent(scrollPane)
         callbacks.customizeUiComponent(tabs)
-        
+
         # add the custom tab to Burp's UI
         callbacks.addSuiteTab(self)
-        
+
         # register ourselves as an HTTP listener
         callbacks.registerHttpListener(self)
-        
+
         return
-        
+
     #
     # implement ITab
     #
-    
+
     def getTabCaption(self):
         return "Logger"
-    
+
     def getUiComponent(self):
         return self._splitpane
-        
+
     #
     # implement IHttpListener
     #
-    
+
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
-    
+
         # only process requests
         if not messageIsRequest:
-        
             # create a new log entry with the message details
             self._lock.acquire()
             row = self._log.size()
-            self._log.add(LogEntry(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo), self._helpers.analyzeRequest(messageInfo).getUrl()))
+            self._log.add(LogEntry(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo),
+                                   self._helpers.analyzeRequest(messageInfo).getUrl()))
             self.fireTableRowsInserted(row, row)
             self._lock.release()
         return
@@ -95,7 +95,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
     #
     # extend AbstractTableModel
     #
-    
+
     def getRowCount(self):
         try:
             return self._log.size()
@@ -124,7 +124,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
     # implement IMessageEditorController
     # this allows our request/response viewers to obtain details about the messages being displayed
     #
-    
+
     def getHttpService(self):
         return self._currentlyDisplayedItem.getHttpService()
 
@@ -134,37 +134,35 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
     def getResponse(self):
         return self._currentlyDisplayedItem.getResponse()
 
+
 #
 # extend JTable to handle cell selection
 #
-    
-class Table(JTable):
 
+class Table(JTable):
     def __init__(self, extender):
         self._extender = extender
         self.setModel(extender)
         return
-    
+
     def changeSelection(self, row, col, toggle, extend):
-    
         # show the log entry for the selected row
         logEntry = self._extender._log.get(row)
         self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
         self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), False)
         self._extender._currentlyDisplayedItem = logEntry._requestResponse
-        
+
         JTable.changeSelection(self, row, col, toggle, extend)
         return
-    
+
+
 #
 # class to hold details of each log entry
 #
 
 class LogEntry:
-
     def __init__(self, tool, requestResponse, url):
         self._tool = tool
         self._requestResponse = requestResponse
         self._url = url
         return
-      
